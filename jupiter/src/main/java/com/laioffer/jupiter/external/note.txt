@@ -1,0 +1,9 @@
+external to save all Twitch client related classes,
+for backend server to get data from Twitch Server.
+
+
+Go to File > Settings > Plugins
+Click on Browse repositories...
+Search for Lombok Plugin
+Click on Install plugin
+Restart IntelliJ IDEA
