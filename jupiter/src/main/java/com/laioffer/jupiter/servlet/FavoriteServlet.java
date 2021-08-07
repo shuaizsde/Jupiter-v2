@@ -1,34 +1,43 @@
 package com.laioffer.jupiter.servlet;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.laioffer.jupiter.db.MySQLConnection;
 import com.laioffer.jupiter.db.MySQLException;
 import com.laioffer.jupiter.entity.FavoriteRequestBody;
 import com.laioffer.jupiter.entity.Item;
+import com.laioffer.jupiter.ultils.ServletUtil;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-@WebServlet(name = "FavoriteServlet", value = "/favorite")
+@WebServlet(name = "FavoriteServlet", urlPatterns = {"/favorite"})
 public class FavoriteServlet extends HttpServlet {
-    // connection pool
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String userId = request.getParameter("user_id");
-        Map<String, List<Item>> itemMap;
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        // Check if the session is still valid, which means the user has been logged in successfully.
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+        String userId = (String) session.getAttribute("user_id");
+        // Get favorite item information from request body
+        FavoriteRequestBody body = ServletUtil.readRequestBody(FavoriteRequestBody.class, request);
+        if (body == null) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
         MySQLConnection connection = null;
         try {
-            // Read the favorite items from the database
+            // Save the favorite item to the database
             connection = new MySQLConnection();
-            itemMap = connection.getFavoriteItems(userId);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().print(new ObjectMapper().writeValueAsString(itemMap));
+            connection.setFavoriteItem(userId, body.getFavoriteItem());
         } catch (MySQLException e) {
             throw new ServletException(e);
         } finally {
@@ -38,12 +47,15 @@ public class FavoriteServlet extends HttpServlet {
         }
     }
 
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws
-            ServletException, IOException {
-        String userId = request.getParameter("user_id");
-        ObjectMapper mapper = new ObjectMapper();
-        FavoriteRequestBody body = mapper.readValue(request.getReader(), FavoriteRequestBody.class);
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        // Check if the session is still valid, which means the user has been logged in successfully.
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+        String userId = (String) session.getAttribute("user_id");
+        FavoriteRequestBody body = ServletUtil.readRequestBody(FavoriteRequestBody.class, request);
         if (body == null) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
@@ -63,23 +75,21 @@ public class FavoriteServlet extends HttpServlet {
         }
     }
 
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws
-            ServletException, IOException {
-        // Get user ID from request URL, this is a temporary solution since we don’t support session now
-        String userId = request.getParameter("user_id");
-        // Get favorite item information from request body
-        ObjectMapper mapper = new ObjectMapper();
-        FavoriteRequestBody body = mapper.readValue(request.getReader(), FavoriteRequestBody.class);
-        if (body == null) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        // Check if the session is still valid, which means the user has been logged in successfully.
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
-
+        String userId = (String) session.getAttribute("user_id");
+        Map<String, List<Item>> itemMap;
         MySQLConnection connection = null;
         try {
-            // Save the favorite item to the database
+            // Read the favorite items from the database
             connection = new MySQLConnection();
-            connection.setFavoriteItem(userId, body.getFavoriteItem());
+            itemMap = connection.getFavoriteItems(userId);
+            ServletUtil.writeItemMap(response, itemMap);
         } catch (MySQLException e) {
             throw new ServletException(e);
         } finally {
@@ -87,7 +97,5 @@ public class FavoriteServlet extends HttpServlet {
                 connection.close();
             }
         }
-
-
     }
 }
