@@ -1,14 +1,19 @@
 import React from "react";
-import { Button, Layout, message } from "antd";
+import { Button, Col, Layout, Menu, message, Row } from "antd";
 import Login from "./components/Login";
 import Register from "./components/Register";
-import { logout } from "./utils";
+import { getTopGames, logout } from "./utils";
+import Favorites from "./components/Favorites";
+import { LikeOutlined, FireOutlined } from "@ant-design/icons";
+import CustomSearch from "./components/CustomSearch";
+import SubMenu from "antd/lib/menu/SubMenu";
 
 const { Header, Content, Sider } = Layout;
 
 class App extends React.Component {
   state = {
     loggedIn: false,
+    topGames: [],
   };
 
   signinOnSuccess = () => {
@@ -30,23 +35,66 @@ class App extends React.Component {
       });
   };
 
+  componentDidMount = () => {
+    getTopGames()
+      .then(data => {
+        this.setState({
+          topGames: data,
+        });
+      })
+      .catch(err => {
+        message.error(err.message);
+      });
+  };
+
   render = () => (
     <Layout>
       <Header>
-        {this.state.loggedIn ? (
-          <Button shape="round" onClick={this.signoutOnClick}>
-            Logout
-          </Button>
-        ) : (
-          <>
-            <Login onSuccess={this.signinOnSuccess} />
-            <Register />
-          </>
-        )}
+        <Row justify="space-between">
+          <Col>{this.state.loggedIn && <Favorites />}</Col>
+          <Col>
+            {this.state.loggedIn ? (
+              <Button shape="round" onClick={this.signoutOnClick}>
+                Logout
+              </Button>
+            ) : (
+              <>
+                <Login onSuccess={this.signinOnSuccess} />
+                <Register />
+              </>
+            )}
+          </Col>
+        </Row>
       </Header>
       <Layout>
         <Sider width={300} className="site-layout-background">
-          {"Sider"}
+          <CustomSearch />
+          <Menu mode="inline" onSelect={() => {}} style={{ marginTop: "10px" }}>
+            <Menu.Item icon={<LikeOutlined />} key="Recommendation">
+              Recommend for you!
+            </Menu.Item>
+            <SubMenu
+              icon={<FireOutlined />}
+              key="Popular Games"
+              title="Popular Games"
+              className="site-top-game-list"
+            >
+              {this.state.topGames.map(game => {
+                return (
+                  <Menu.Item key={game.id} style={{ height: "50px" }}>
+                    <img
+                      alt="Placeholder"
+                      src={game.box_art_url
+                        .replace("{height}", "40")
+                        .replace("{width}", "40")}
+                      style={{ borderRadius: "50%", marginRight: "20px" }}
+                    />
+                    <span>{game.name}</span>
+                  </Menu.Item>
+                );
+              })}
+            </SubMenu>
+          </Menu>
         </Sider>
         <Layout style={{ padding: "24px" }}>
           <Content
